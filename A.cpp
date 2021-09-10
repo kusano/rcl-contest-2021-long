@@ -15,27 +15,19 @@ const int N = 16;
 const int M = 5000;
 const int T = 1000;
 
-struct RC
-{
-    int r, c;
-    RC(): r(-1), c(-1) {}
-    RC(int r, int c): r(r), c(c) {}
-    bool operator==(const RC &rc) const {return r==rc.r && c==rc.c;}
-};
-
 struct Move
 {
-    //  購入はrc1.r=-1
-    //  パスはrc2.r=-1
-    RC rc1, rc2;
-    Move(): rc1(-1, -1), rc2(-1, -1) {}
-    Move(RC rc1, RC rc2): rc1(rc1), rc2(rc2) {}
+    //  購入はfrom=-1
+    //  パスはto=-1
+    int from, to;
+    Move(): from(-1), to(-1) {}
+    Move(int from, int to): from(from), to(to) {}
 };
 
 struct State
 {
-    short F[N][N] = {};
-    bool M[N][N] = {};
+    short field[N*N] = {};
+    bool machine[N*N] = {};
     unsigned long long hash = 0;
     long long score = 0;
     long long money = 0;
@@ -43,16 +35,22 @@ struct State
     Move move;
 };
 
+struct PosV
+{
+    int pos;
+    int v;
+    PosV(int pos, int v): pos(pos), v(v) {}
+};
+
 bool operator<(const State &s1, const State &s2)
 {
     return s1.score>s2.score;
 }
 
-unsigned long long Hash[N][N][3];
+unsigned long long Hash[N*N][3];
 
-vector<RC> SRC[T];
-vector<int> SV[T];
-vector<RC> ERC[T];
+vector<PosV> SPosV[T];
+vector<int> EPos[T];
 
 int xor64(void) {
     static uint64_t x = 88172645463325252ULL;
@@ -63,108 +61,52 @@ int xor64(void) {
 }
 
 //  隣接しているマシン数を返す
-int calc_k_sub(bool machine[N][N], int r, int c, vector<RC> *hist);
+int calc_k_sub(bool machine[N*N], int p, vector<int> *hist);
 
-int calc_k(bool machine[N][N], int r, int c)
+int calc_k(bool machine[N*N], int p)
 {
-    assert(machine[r][c]);
+    assert(machine[p]);
 
-    static vector<RC> hist;
-    int n = calc_k_sub(machine, r, c, &hist);
+    static vector<int> hist;
+    int n = calc_k_sub(machine, p, &hist);
 
     while (!hist.empty())
     {
-        machine[hist.back().r][hist.back().c] = true;
+        machine[hist.back()] = true;
         hist.pop_back();
     }
 
     return n;
 }
 
-int calc_k_sub(bool machine[N][N], int r, int c, vector<RC> *hist)
+int calc_k_sub(bool machine[N*N], int p, vector<int> *hist)
 {
-    assert(machine[r][c]);
+    assert(machine[p]);
 
-    machine[r][c] = false;
-    hist->push_back(RC(r, c));
+    machine[p] = false;
+    hist->push_back(p);
 
+    //  TODO
     static int dr[] = {-1, 1, 0, 0};
     static int dc[] = {0, 0, -1, 1};
     int n = 1;
     for (int d=0; d<4; d++)
     {
-        int tr = r + dr[d];
-        int tc = c + dc[d];
+        int tr = p/N + dr[d];
+        int tc = p%N + dc[d];
         if (0<=tr && tr<N &&
             0<=tc && tc<N &&
-            machine[tr][tc])
-            n += calc_k_sub(machine, tr, tc, hist);
+            machine[tr*N+tc])
+            n += calc_k_sub(machine, tr*N+tc, hist);
     }
     return n;
 }
 
-long long calc_score(const vector<Move> &moves)
-{
-    int vege[N][N] = {};
-    bool machine[N][N] = {};
-    long long money = 1;
-    int j = 0;
-
-    for (int t=0; t<T; t++)
-    {
-        const RC &rc1 = moves[t].rc1;
-        const RC &rc2 = moves[t].rc2;
-
-        if (rc2.r>=0)
-        {
-            if (rc1.r<0)
-            {
-                //  購入
-                int m = (j+1)*(j+1)*(j+1);
-                j++;
-                if (money<m)
-                    return -1;
-                money -= m;
-            }
-            else
-            {
-                //  移動
-                if (!machine[rc1.r][rc1.c])
-                    return -1;
-                machine[rc1.r][rc1.c] = false;
-            }
-
-            if (machine[rc2.r][rc2.c])
-                return -1;
-            machine[rc2.r][rc2.c] = true;
-        }
-
-        for (int i=0; i<(int)SRC[t].size(); i++)
-            vege[SRC[t][i].r][SRC[t][i].c] = SV[t][i];
-
-        for (int r=0; r<N; r++)
-            for (int c=0; c<N; c++)
-                if (vege[r][c]>0 && machine[r][c])
-                {
-                    int v = vege[r][c];
-                    vege[r][c] = 0;
-                    int k = calc_k(machine, r, c);
-                    money += (long long)v*k;
-                }
-
-        for (RC rc: ERC[t])
-            vege[rc.r][rc.c] = 0;
-    }
-
-    return money;
-}
-
-long long calc_hash(short F[N][N], bool M[N][N])
+long long calc_hash(short F[N*N], bool M[N*N])
 {
     long long h = 0;
-    for (int r=0; r<N; r++)
-        for (int c=0; c<N; c++)
-            h ^= Hash[r][c][(F[r][c]>0?2:0)+(M[r][c]?1:0)];
+    for (int p=0; p<N*N; p++)
+        h ^= Hash[p][(F[p]>0?2:0)+(M[p]?1:0)];
     return h;
 }
 
@@ -176,46 +118,42 @@ int main()
     {
         int R, C, S, E, V;
         cin>>R>>C>>S>>E>>V;
-        SRC[S].push_back(RC(R, C));
-        SV[S].push_back(V);
-        ERC[E].push_back(RC(R, C));
+        SPosV[S].push_back(PosV(R*N+C, V));
+        EPos[E].push_back(R*N+C);
     }
 
     chrono::system_clock::time_point start = chrono::system_clock::now();
 
-    for (int i=0; i<N; i++)
-        for (int j=0; j<N; j++)
-            for (int k=0; k<3; k++)
-                Hash[i][j][k] = (unsigned long long)xor64()<<32 | xor64();
+    for (int p=0; p<N*N; p++)
+        for (int i=0; i<3; i++)
+            Hash[p][i] = (unsigned long long)xor64()<<32 | xor64();
 
     const int BW = 8;
     vector<State> S[T];
 
     //  t=0
-    for (int r=0; r<N; r++)
-        for (int c=0; c<N; c++)
+    for (int p=0; p<N*N; p++)
+    {
+        State s;
+        s.score = 1;
+        s.machine[p] = true;
+        s.move = Move(-1, p);
+        for (auto posv: SPosV[0])
         {
-            State s;
-            s.score = 1;
-            s.M[r][c] = true;
-            s.move = Move(RC(-1, -1), RC(r, c));
-            for (int i=0; i<(int)SRC[0].size(); i++)
+            if (s.machine[posv.pos])
             {
-                const RC &rc = SRC[0][i];
-                if (s.M[rc.r][rc.c])
-                {
-                    s.score += SV[0][i];
-                    s.money += SV[0][i];
-                }
-                else
-                    s.F[rc.r][rc.c] += SV[0][i];
+                s.score += posv.v;
+                s.money += posv.v;
             }
-            for (RC rc: ERC[0])
-                s.F[rc.r][rc.c] = 0;
-            s.hash = calc_hash(s.F, s.M);
-
-            S[0].push_back(s);
+            else
+                s.field[posv.pos] = posv.v;
         }
+        for (int p: EPos[0])
+            s.field[p] = 0;
+        s.hash = calc_hash(s.field, s.machine);
+
+        S[0].push_back(s);
+    }
 
     sort(S[0].begin(), S[0].end());
     if ((int)S[0].size()>BW)
@@ -231,21 +169,19 @@ int main()
         for (State &s1: S[t])
         {
             int mn = 0;
-            for (int r=0; r<N; r++)
-                for (int c=0; c<N; c++)
-                    if (s1.M[r][c])
-                        mn++;
+            for (int p=0; p<N*N; p++)
+                if (s1.machine[p])
+                    mn++;
 
-            vector<RC> from;
+            vector<int> from;
             if ((mn+1)*(mn+1)*(mn+1)<=s1.money)
-                from.push_back(RC(-1, -1));
+                from.push_back(-1);
             //  最後はマシンを変えるときに移動も可
             if (t>=T*9/10 ||
                 (mn+1)*(mn+1)*(mn+1)>s1.money)
-                for (int r=0; r<N; r++)
-                    for (int c=0; c<N; c++)
-                        if (s1.M[r][c])
-                            from.push_back(RC(r, c));
+                for (int p=0; p<N*N; p++)
+                    if (s1.machine[p])
+                        from.push_back(p);
             if ((int)from.size()>8)
             {
                 int n = (int)from.size();
@@ -254,73 +190,70 @@ int main()
                 from.resize(8);
             }
 
-            for (RC f: from)
+            for (int f: from)
             {
-                for (int tr=0; tr<N; tr++)
-                    for (int tc=0; tc<N; tc++)
+                for (int to=0; to<N*N; to++)
+                {
+                    if (f==to || !s1.machine[to])
                     {
-                        RC trc(tr, tc);
-                        if (f==trc || !s1.M[tr][tc])
+                        if (f>=0)
+                            s1.machine[f] = false;
+                        s1.machine[to] = true;
+                        bool ok = calc_k(s1.machine, to)==mn+(f<0 ? 1 : 0);
+                        s1.machine[to] = false;
+                        if (f>=0)
+                            s1.machine[f] = true;
+
+                        if (ok)
                         {
-                            if (f.r>=0)
-                                s1.M[f.r][f.c] = false;
-                            s1.M[tr][tc] = true;
-                            bool ok = calc_k(s1.M, tr, tc)==mn+(f.r<0 ? 1 : 0);
-                            s1.M[tr][tc] = false;
-                            if (f.r>=0)
-                                s1.M[f.r][f.c] = true;
+                            State s2;
+                            memcpy(s2.field, s1.field, sizeof s2.field);
+                            memcpy(s2.machine, s1.machine, sizeof s2.machine);
+                            s2.score = s1.score;
+                            s2.money = s1.money;
+                            s2.prev = &s1;
+                            s2.move = Move(f, to);
 
-                            if (ok)
+                            if (f>=0)
+                                s2.machine[f] = false;
+                            s2.machine[to] = true;
+                            if (f<0)
                             {
-                                State s2;
-                                memcpy(s2.F, s1.F, sizeof s2.F);
-                                memcpy(s2.M, s1.M, sizeof s2.M);
-                                s2.score = s1.score;
-                                s2.money = s1.money;
-                                s2.prev = &s1;
-                                s2.move = Move(f, trc);
-
-                                if (f.r>=0)
-                                    s2.M[f.r][f.c] = false;
-                                s2.M[tr][tc] = true;
-                                if (f.r<0)
-                                {
-                                    mn++;
-                                    s2.money -= mn*mn*mn;
-                                }
-
-                                if (s2.F[tr][tc]>0)
-                                {
-                                    s2.money += s2.F[tr][tc]*mn;
-                                    s2.score += s2.F[tr][tc]*mn;
-                                    s2.F[tr][tc] = 0;
-                                }
-                                for (int i=0; i<(int)SRC[t+1].size(); i++)
-                                {
-                                    RC &rc = SRC[t+1][i];
-                                    if (s2.M[rc.r][rc.c])
-                                    {
-                                        s2.money += SV[t+1][i]*mn;
-                                        s2.score += SV[t+1][i]*mn;
-                                    }
-                                    else
-                                        s2.F[rc.r][rc.c] = SV[t+1][i];
-                                }
-                                for (RC rc: ERC[t+1])
-                                    s2.F[rc.r][rc.c] = 0;
-
-                                //  最後は金額を見る
-                                if (t>=T*9/10)
-                                    s2.score = s2.money;
-
-                                s2.hash = calc_hash(s2.F, s2.M);
-
-                                if (MS.count(s2.hash)==0 ||
-                                    s2.score > MS[s2.hash].score)
-                                    MS[s2.hash] = s2;
+                                mn++;
+                                s2.money -= mn*mn*mn;
                             }
+
+                            if (s2.field[to]>0)
+                            {
+                                s2.money += s2.field[to]*mn;
+                                s2.score += s2.field[to]*mn;
+                                s2.field[to] = 0;
+                            }
+                            for (auto posv: SPosV[t+1])
+                            {
+                                if (s2.machine[posv.pos])
+                                {
+                                    s2.money += posv.v*mn;
+                                    s2.score += posv.v*mn;
+                                }
+                                else
+                                    s2.field[posv.pos] = posv.v;
+                            }
+                            for (int p: EPos[t+1])
+                                s2.field[p] = 0;
+
+                            //  最後は金額を見る
+                            if (t>=T*9/10)
+                                s2.score = s2.money;
+
+                            s2.hash = calc_hash(s2.field, s2.machine);
+
+                            if (MS.count(s2.hash)==0 ||
+                                s2.score > MS[s2.hash].score)
+                                MS[s2.hash] = s2;
                         }
                     }
+                }
             }
         }
 
@@ -335,10 +268,9 @@ int main()
 
     cerr<<"money: "<<S[T-1][0].money<<endl;
     int mn = 0;
-    for (int r=0; r<N; r++)
-        for (int c=0; c<N; c++)
-            if (S[T-1][0].M[r][c])
-                mn++;
+    for (int m: S[T-1][0].machine)
+        if (m)
+            mn++;
     cerr<<"machine: "<<mn<<endl;
 
     vector<Move> moves;
@@ -346,14 +278,12 @@ int main()
         moves.push_back(s->move);
     reverse(moves.begin(), moves.end());
 
-    cerr<<calc_score(moves)<<endl;
-
     for (Move move: moves)
-        if (move.rc2.r>=0)
-            if (move.rc1.r<0)
-                cout<<move.rc2.r<<" "<<move.rc2.c<<endl;
+        if (move.to>=0)
+            if (move.from<0)
+                cout<<move.to/N<<" "<<move.to%N<<endl;
             else
-                cout<<move.rc1.r<<" "<<move.rc1.c<<" "<<move.rc2.r<<" "<<move.rc2.c<<endl;
+                cout<<move.from/N<<" "<<move.from%N<<" "<<move.to/N<<" "<<move.to%N<<endl;
         else
             cout<<-1<<endl;
 
