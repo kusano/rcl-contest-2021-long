@@ -86,14 +86,13 @@ int calc_k_sub(bool machine[N*N], int p, vector<int> *hist)
     machine[p] = false;
     hist->push_back(p);
 
-    //  TODO
     static int dr[] = {-1, 1, 0, 0};
     static int dc[] = {0, 0, -1, 1};
     int n = 1;
     for (int d=0; d<4; d++)
     {
-        int tr = p/N + dr[d];
-        int tc = p%N + dc[d];
+        int tr = (p>>4) + dr[d];
+        int tc = (p&15) + dc[d];
         if (0<=tr && tr<N &&
             0<=tc && tc<N &&
             machine[tr*N+tc])
@@ -162,11 +161,11 @@ int main()
     int dr[] = {1, -1, 0, 0};
     int dc[] = {0, 0, 1, -1};
 
-    for (int t=0; t<T-1; t++)
+    for (int turn=1; turn<T; turn++)
     {
         map<unsigned long long, State> MS;
 
-        for (State &s1: S[t])
+        for (State &s1: S[turn-1])
         {
             int mn = 0;
             for (int p=0; p<N*N; p++)
@@ -177,7 +176,7 @@ int main()
             if ((mn+1)*(mn+1)*(mn+1)<=s1.money)
                 from.push_back(-1);
             //  最後はマシンを変えるときに移動も可
-            if (t>=T*9/10 ||
+            if (turn>=T*9/10 ||
                 (mn+1)*(mn+1)*(mn+1)>s1.money)
                 for (int p=0; p<N*N; p++)
                     if (s1.machine[p])
@@ -192,44 +191,40 @@ int main()
 
             for (int f: from)
             {
-                for (int to=0; to<N*N; to++)
+                for (int t=0; t<N*N; t++)
                 {
-                    if (f==to || !s1.machine[to])
+                    if (f==t || !s1.machine[t])
                     {
                         if (f>=0)
                             s1.machine[f] = false;
-                        s1.machine[to] = true;
-                        bool ok = calc_k(s1.machine, to)==mn+(f<0 ? 1 : 0);
-                        s1.machine[to] = false;
+                        s1.machine[t] = true;
+                        bool ok = calc_k(s1.machine, t)==mn+(f<0 ? 1 : 0);
+                        s1.machine[t] = false;
                         if (f>=0)
                             s1.machine[f] = true;
 
                         if (ok)
                         {
-                            State s2;
-                            memcpy(s2.field, s1.field, sizeof s2.field);
-                            memcpy(s2.machine, s1.machine, sizeof s2.machine);
-                            s2.score = s1.score;
-                            s2.money = s1.money;
+                            State s2 = s1;
                             s2.prev = &s1;
-                            s2.move = Move(f, to);
+                            s2.move = Move(f, t);
 
                             if (f>=0)
                                 s2.machine[f] = false;
-                            s2.machine[to] = true;
+                            s2.machine[t] = true;
                             if (f<0)
                             {
                                 mn++;
                                 s2.money -= mn*mn*mn;
                             }
 
-                            if (s2.field[to]>0)
+                            if (s2.field[t]>0)
                             {
-                                s2.money += s2.field[to]*mn;
-                                s2.score += s2.field[to]*mn;
-                                s2.field[to] = 0;
+                                s2.money += s2.field[t]*mn;
+                                s2.score += s2.field[t]*mn;
+                                s2.field[t] = 0;
                             }
-                            for (auto posv: SPosV[t+1])
+                            for (auto posv: SPosV[turn])
                             {
                                 if (s2.machine[posv.pos])
                                 {
@@ -239,11 +234,11 @@ int main()
                                 else
                                     s2.field[posv.pos] = posv.v;
                             }
-                            for (int p: EPos[t+1])
+                            for (int p: EPos[turn])
                                 s2.field[p] = 0;
 
                             //  最後は金額を見る
-                            if (t>=T*9/10)
+                            if (turn>=T*9/10)
                                 s2.score = s2.money;
 
                             s2.hash = calc_hash(s2.field, s2.machine);
@@ -258,12 +253,10 @@ int main()
         }
 
         for (auto &s: MS)
-            S[t+1].push_back(s.second);
-        sort(S[t+1].begin(), S[t+1].end());
-        if ((int)S[t+1].size()>BW)
-            S[t+1].resize(BW);
-
-        //cerr<<t+1<<" "<<S[t+1][0].score<<" "<<S[t+1][0].money<<endl;
+            S[turn].push_back(s.second);
+        sort(S[turn].begin(), S[turn].end());
+        if ((int)S[turn].size()>BW)
+            S[turn].resize(BW);
     }
 
     cerr<<"money: "<<S[T-1][0].money<<endl;
