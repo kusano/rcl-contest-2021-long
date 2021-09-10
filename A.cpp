@@ -6,6 +6,9 @@
 #include <chrono>
 #include <cmath>
 #include <queue>
+#include <cstring>
+#include <algorithm>
+#include <map>
 using namespace std;
 
 const int N = 16;
@@ -15,25 +18,37 @@ const int T = 1000;
 struct RC
 {
     int r, c;
+    RC(): r(-1), c(-1) {}
     RC(int r, int c): r(r), c(c) {}
     bool operator==(const RC &rc) const {return r==rc.r && c==rc.c;}
 };
 
-//  Phase 1用
-struct Move1
-{
-    RC rc;
-    Move1(RC rc): rc(rc) {}
-};
-
-//  Phase 2用
-struct Move2
+struct Move
 {
     //  購入はrc1.r=-1
     //  パスはrc2.r=-1
     RC rc1, rc2;
-    Move2(RC rc1, RC rc2): rc1(rc1), rc2(rc2) {}
+    Move(): rc1(-1, -1), rc2(-1, -1) {}
+    Move(RC rc1, RC rc2): rc1(rc1), rc2(rc2) {}
 };
+
+struct State
+{
+    short F[N][N] = {};
+    bool M[N][N] = {};
+    unsigned long long hash = 0;
+    long long score = 0;
+    long long money = 0;
+    State *prev = nullptr;
+    Move move;
+};
+
+bool operator<(const State &s1, const State &s2)
+{
+    return s1.score>s2.score;
+}
+
+unsigned long long Hash[N][N][3];
 
 vector<RC> SRC[T];
 vector<int> SV[T];
@@ -88,120 +103,7 @@ int calc_k_sub(bool machine[N][N], int r, int c, vector<RC> *hist)
     return n;
 }
 
-//  Phase 1
-//  move[i].rcに置く
-//  購入できる資金があるなら買う
-//  資金が無いなら最も古いマシンを移動
-//  マシンの購入金額を引かず、総獲得資金を返す
-long long calc_score1(const vector<Move1> &moves)
-{
-    int vege[N][N] = {};
-    bool machine[N][N] = {};
-    long long money = 1;
-    long long money_machine = 0;
-    int j = 0;
-    queue<RC> Q;
-
-    for (int t=0; t<T; t++)
-    {
-        const RC &rc = moves[t].rc;
-        if (machine[rc.r][rc.c])
-            return -1;
-
-        int m = (j+1)*(j+1)*(j+1);
-        if (m<=money)
-        {
-            j++;
-            money -= m;
-            money_machine += m;
-        }
-        else
-        {
-            RC f = Q.front();
-            Q.pop();
-            machine[f.r][f.c] = false;
-        }
-
-        Q.push(rc);
-        machine[rc.r][rc.c] = true;
-
-        for (int i=0; i<(int)SRC[t].size(); i++)
-            vege[SRC[t][i].r][SRC[t][i].c] = SV[t][i];
-
-        for (int r=0; r<N; r++)
-            for (int c=0; c<N; c++)
-                if (vege[r][c]>0 && machine[r][c])
-                {
-                    int v = vege[r][c];
-                    vege[r][c] = 0;
-                    int k = calc_k(machine, r, c);
-                    money += (long long)v*k;
-                }
-
-        for (RC rc: ERC[t])
-            vege[rc.r][rc.c] = 0;
-    }
-
-    return money + money_machine;
-}
-
-vector<Move2> convert_moves(const vector<Move1> &moves)
-{
-    int vege[N][N] = {};
-    bool machine[N][N] = {};
-    long long money = 1;
-    int j = 0;
-    queue<RC> Q;
-    vector<Move2> result;
-
-    for (int t=0; t<T; t++)
-    {
-        const RC &rc = moves[t].rc;
-        if (machine[rc.r][rc.c])
-        {
-            result.resize(T, Move2(RC(-1, -1), RC(-1, -1)));
-            return result;
-        }
-
-        int m = (j+1)*(j+1)*(j+1);
-        if (m<=money)
-        {
-            j++;
-            money -= m;
-            result.push_back(Move2(RC(-1, -1), rc));
-        }
-        else
-        {
-            RC f = Q.front();
-            Q.pop();
-            machine[f.r][f.c] = false;
-            result.push_back(Move2(f, rc));
-        }
-
-        Q.push(rc);
-        machine[rc.r][rc.c] = true;
-
-        for (int i=0; i<(int)SRC[t].size(); i++)
-            vege[SRC[t][i].r][SRC[t][i].c] = SV[t][i];
-
-        for (int r=0; r<N; r++)
-            for (int c=0; c<N; c++)
-                if (vege[r][c]>0 && machine[r][c])
-                {
-                    int v = vege[r][c];
-                    vege[r][c] = 0;
-                    int k = calc_k(machine, r, c);
-                    money += (long long)v*k;
-                }
-
-        for (RC rc: ERC[t])
-            vege[rc.r][rc.c] = 0;
-    }
-
-    return result;
-}
-
-long long calc_score2(const vector<Move2> &moves)
+long long calc_score(const vector<Move> &moves)
 {
     int vege[N][N] = {};
     bool machine[N][N] = {};
@@ -257,6 +159,15 @@ long long calc_score2(const vector<Move2> &moves)
     return money;
 }
 
+long long calc_hash(short F[N][N], bool M[N][N])
+{
+    long long h = 0;
+    for (int r=0; r<N; r++)
+        for (int c=0; c<N; c++)
+            h ^= Hash[r][c][(F[r][c]>0?2:0)+(M[r][c]?1:0)];
+    return h;
+}
+
 int main()
 {
     int _N, _M, _T;
@@ -272,91 +183,189 @@ int main()
 
     chrono::system_clock::time_point start = chrono::system_clock::now();
 
-    vector<Move1> moves;
-    for (int i=0; i<T; i++)
-        moves.push_back(RC(i/N%N, i%N));
+    for (int i=0; i<N; i++)
+        for (int j=0; j<N; j++)
+            for (int k=0; k<3; k++)
+                Hash[i][j][k] = (unsigned long long)xor64()<<32 | xor64();
 
-    long long score = 1;
-    vector<Move1> best_moves = moves;
-    long long best_score = score;
-    double time = 0;
-    double temp = 1e10;
-    int iter;
-    for (iter=0; ; iter++)
+    const int BW = 8;
+    vector<State> S[T];
+
+    //  t=0
+    for (int r=0; r<N; r++)
+        for (int c=0; c<N; c++)
+        {
+            State s;
+            s.score = 1;
+            s.M[r][c] = true;
+            s.move = Move(RC(-1, -1), RC(r, c));
+            for (int i=0; i<(int)SRC[0].size(); i++)
+            {
+                const RC &rc = SRC[0][i];
+                if (s.M[rc.r][rc.c])
+                {
+                    s.score += SV[0][i];
+                    s.money += SV[0][i];
+                }
+                else
+                    s.F[rc.r][rc.c] += SV[0][i];
+            }
+            for (RC rc: ERC[0])
+                s.F[rc.r][rc.c] = 0;
+            s.hash = calc_hash(s.F, s.M);
+
+            S[0].push_back(s);
+        }
+
+    sort(S[0].begin(), S[0].end());
+    if ((int)S[0].size()>BW)
+        S[0].resize(BW);
+
+    int dr[] = {1, -1, 0, 0};
+    int dc[] = {0, 0, 1, -1};
+
+    for (int t=0; t<T-1; t++)
     {
-        if (iter%0x100==0)
+        map<unsigned long long, State> MS;
+
+        for (State &s1: S[t])
         {
-            chrono::system_clock::time_point now = chrono::system_clock::now();
-            time = chrono::duration_cast<chrono::microseconds>(now-start).count()*1e-6/1.5;
-            if (time>=1.)
-                break;
-            temp = (1-time)*1000;
+            int mn = 0;
+            for (int r=0; r<N; r++)
+                for (int c=0; c<N; c++)
+                    if (s1.M[r][c])
+                        mn++;
+
+            vector<RC> from;
+            if ((mn+1)*(mn+1)*(mn+1)<=s1.money)
+                from.push_back(RC(-1, -1));
+            else
+                for (int r=0; r<N; r++)
+                    for (int c=0; c<N; c++)
+                        if (s1.M[r][c])
+                            from.push_back(RC(r, c));
+            if ((int)from.size()>8)
+            {
+                int n = (int)from.size();
+                for (int i=0; i<8; i++)
+                    swap(from[i], from[xor64()%(n-i)+i]);
+                from.resize(8);
+            }
+
+            for (RC f: from)
+            {
+                for (int tr=0; tr<N; tr++)
+                    for (int tc=0; tc<N; tc++)
+                    {
+                        RC trc(tr, tc);
+                        if (f==trc || !s1.M[tr][tc])
+                        {
+                            if (f.r>=0)
+                                s1.M[f.r][f.c] = false;
+                            s1.M[tr][tc] = true;
+                            bool ok = calc_k(s1.M, tr, tc)==mn+(f.r<0 ? 1 : 0);
+                            s1.M[tr][tc] = false;
+                            if (f.r>=0)
+                                s1.M[f.r][f.c] = true;
+
+                            if (ok)
+                            {
+                                State s2;
+                                memcpy(s2.F, s1.F, sizeof s2.F);
+                                memcpy(s2.M, s1.M, sizeof s2.M);
+                                s2.score = s1.score;
+                                s2.money = s1.money;
+                                s2.prev = &s1;
+                                s2.move = Move(f, trc);
+
+                                if (f.r>=0)
+                                    s2.M[f.r][f.c] = false;
+                                s2.M[tr][tc] = true;
+                                if (f.r<0)
+                                {
+                                    mn++;
+                                    s2.money -= mn*mn*mn;
+                                }
+
+                                if (s2.F[tr][tc]>0)
+                                {
+                                    s2.money += s2.F[tr][tc];
+                                    s2.score += s2.F[tr][tc];
+                                    s2.F[tr][tc] = 0;
+                                }
+                                for (int i=0; i<(int)SRC[t+1].size(); i++)
+                                {
+                                    RC &rc = SRC[t+1][i];
+                                    if (s2.M[rc.r][rc.c])
+                                    {
+                                        s2.money += SV[t+1][i]*mn;
+                                        s2.score += SV[t+1][i]*mn;
+                                    }
+                                    else
+                                        s2.F[rc.r][rc.c] = SV[t+1][i];
+                                }
+                                for (RC rc: ERC[t+1])
+                                    s2.F[rc.r][rc.c] = 0;
+
+                                s2.hash = calc_hash(s2.F, s2.M);
+
+                                if (MS.count(s2.hash)==0 ||
+                                    s2.score > MS[s2.hash].score)
+                                    MS[s2.hash] = s2;
+                            }
+                        }
+                    }
+            }
         }
 
-        int t = xor64()%T;
-        Move1 old_move = moves[t];
-        moves[t].rc = RC(xor64()%N, xor64()%N);
+        for (auto &s: MS)
+            S[t+1].push_back(s.second);
+        sort(S[t+1].begin(), S[t+1].end());
+        if ((int)S[t+1].size()>BW)
+            S[t+1].resize(BW);
 
-        long long score2 = calc_score1(moves);
-        if (score2<0)
-        {
-            moves[t] = old_move;
-            continue;
-        }
-
-        if (score2>best_score)
-        {
-            best_moves = moves;
-            best_score = score2;
-        }
-
-        double prob = exp((score2-score)/temp);
-        //if (xor64()%0x10000/0x10000<prob)
-        if (xor64()%0x10000<prob*0x10000)
-            score = score2;
-        else
-            moves[t] = old_move;
+        cerr<<t+1<<" "<<S[t+1][0].score<<endl;
     }
 
-    cerr<<"time: "<<time<<endl;
-    cerr<<"iter: "<<iter<<endl;
-    cerr<<"best_score: "<<best_score<<endl;
+    vector<Move> moves;
+    for (State *s = &S[T-1][0]; s!=nullptr; s=s->prev)
+        moves.push_back(s->move);
+    reverse(moves.begin(), moves.end());
 
-    vector<Move2> moves2 = convert_moves(best_moves);
-    vector<Move2> best_moves2 = moves2;
-    long long best_score2 = calc_score2(moves2);
+    vector<Move> best_moves = moves;
+    long long best_score = calc_score(moves);
     while (true)
     {
         //  最後の新規購入を探す
         int t;
         for (t=T-1; t>=0; t--)
-            if (moves2[t].rc2.r!=-1 && moves2[t].rc1.r==-1)
+            if (moves[t].rc2.r!=-1 && moves[t].rc1.r==-1)
                 break;
         if (t<0)
             break;
         //  このマシンをパスに変えていく
-        RC rc = moves2[t].rc2;
-        moves2[t].rc1 = RC(-1, -1);
-        moves2[t].rc2 = RC(-1, -1);
+        RC rc = moves[t].rc2;
+        moves[t].rc1 = RC(-1, -1);
+        moves[t].rc2 = RC(-1, -1);
         for (t++; t<T; t++)
-            if (moves2[t].rc1==rc)
+            if (moves[t].rc1==rc)
             {
-                rc = moves2[t].rc2;
-                moves2[t].rc1 = RC(-1, -1);
-                moves2[t].rc2 = RC(-1, -1);
+                rc = moves[t].rc2;
+                moves[t].rc1 = RC(-1, -1);
+                moves[t].rc2 = RC(-1, -1);
             }
-        long long score = calc_score2(moves2);
+        long long score = calc_score(moves);
         //cerr<<score<<endl;
-        if (score>best_score2)
+        if (score>best_score)
         {
-            best_score2 = score;
-            best_moves2 = moves2;
+            best_score = score;
+            best_moves = moves;
         }
     }
 
-    cerr<<"best_score2: "<<best_score2<<endl;
+    cerr<<"best_score: "<<best_score<<endl;
 
-    for (Move2 move: best_moves2)
+    for (Move move: best_moves)
     {
         if (move.rc2.r>=0)
             if (move.rc1.r<0)
