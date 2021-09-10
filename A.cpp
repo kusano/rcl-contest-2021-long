@@ -1,4 +1,4 @@
-//  g++ -O2 -o A A.cpp && ./A < tester/input_0.txt > tester/output_0.txt
+//  g++ -O2 -o A A.cpp && for i in $(seq 9); do echo ${i}; ./A < tester/input_${i}.txt > tester/output_${i}.txt; done
 
 #include <iostream>
 #include <vector>
@@ -324,8 +324,17 @@ int main()
         if ((int)S[t+1].size()>BW)
             S[t+1].resize(BW);
 
-        cerr<<t+1<<" "<<S[t+1][0].score<<" "<<S[t+1][0].money<<endl;
+        //cerr<<t+1<<" "<<S[t+1][0].score<<" "<<S[t+1][0].money<<endl;
     }
+
+    cerr<<"score: "<<S[T-1][0].score<<endl;
+    cerr<<"money: "<<S[T-1][0].money<<endl;
+    int mn = 0;
+    for (int r=0; r<N; r++)
+        for (int c=0; c<N; c++)
+            if (S[T-1][0].M[r][c])
+                mn++;
+    cerr<<"machine: "<<mn<<endl;
 
     vector<Move> moves;
     for (State *s = &S[T-1][0]; s!=nullptr; s=s->prev)
@@ -363,7 +372,7 @@ int main()
         }
     }
 
-    cerr<<"best_score: "<<best_score<<endl;
+    cerr<<"score: "<<best_score<<endl;
 
     for (Move move: best_moves)
     {
@@ -375,4 +384,6 @@ int main()
         else
             cout<<-1<<endl;
     }
+
+    cerr<<"time: "<<chrono::duration_cast<chrono::microseconds>(chrono::system_clock::now()-start).count()*1e-6<<endl;
 }
