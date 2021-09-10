@@ -1,4 +1,4 @@
-//  g++ -O2 -o A A.cpp && for i in $(seq 9); do echo ${i}; ./A < tester/input_${i}.txt > tester/output_${i}.txt; done
+//  g++ -O2 -o A A.cpp && for i in $(seq 0 9); do echo ${i}; ./A < tester/input_${i}.txt > tester/output_${i}.txt; done
 
 #include <iostream>
 #include <vector>
@@ -239,7 +239,9 @@ int main()
             vector<RC> from;
             if ((mn+1)*(mn+1)*(mn+1)<=s1.money)
                 from.push_back(RC(-1, -1));
-            else
+            //  最後はマシンを変えるときに移動も可
+            if (t>=T*9/10 ||
+                (mn+1)*(mn+1)*(mn+1)>s1.money)
                 for (int r=0; r<N; r++)
                     for (int c=0; c<N; c++)
                         if (s1.M[r][c])
@@ -307,6 +309,10 @@ int main()
                                 for (RC rc: ERC[t+1])
                                     s2.F[rc.r][rc.c] = 0;
 
+                                //  最後は金額を見る
+                                if (t>=T*9/10)
+                                    s2.score = s2.money;
+
                                 s2.hash = calc_hash(s2.F, s2.M);
 
                                 if (MS.count(s2.hash)==0 ||
@@ -327,7 +333,6 @@ int main()
         //cerr<<t+1<<" "<<S[t+1][0].score<<" "<<S[t+1][0].money<<endl;
     }
 
-    cerr<<"score: "<<S[T-1][0].score<<endl;
     cerr<<"money: "<<S[T-1][0].money<<endl;
     int mn = 0;
     for (int r=0; r<N; r++)
@@ -341,41 +346,9 @@ int main()
         moves.push_back(s->move);
     reverse(moves.begin(), moves.end());
 
-    vector<Move> best_moves = moves;
-    long long best_score = calc_score(moves);
-    while (true)
-    {
-        //  最後の新規購入を探す
-        int t;
-        for (t=T-1; t>=0; t--)
-            if (moves[t].rc2.r!=-1 && moves[t].rc1.r==-1)
-                break;
-        if (t<0)
-            break;
-        //  このマシンをパスに変えていく
-        RC rc = moves[t].rc2;
-        moves[t].rc1 = RC(-1, -1);
-        moves[t].rc2 = RC(-1, -1);
-        for (t++; t<T; t++)
-            if (moves[t].rc1==rc)
-            {
-                rc = moves[t].rc2;
-                moves[t].rc1 = RC(-1, -1);
-                moves[t].rc2 = RC(-1, -1);
-            }
-        long long score = calc_score(moves);
-        //cerr<<score<<endl;
-        if (score>best_score)
-        {
-            best_score = score;
-            best_moves = moves;
-        }
-    }
+    cerr<<calc_score(moves)<<endl;
 
-    cerr<<"score: "<<best_score<<endl;
-
-    for (Move move: best_moves)
-    {
+    for (Move move: moves)
         if (move.rc2.r>=0)
             if (move.rc1.r<0)
                 cout<<move.rc2.r<<" "<<move.rc2.c<<endl;
@@ -383,7 +356,6 @@ int main()
                 cout<<move.rc1.r<<" "<<move.rc1.c<<" "<<move.rc2.r<<" "<<move.rc2.c<<endl;
         else
             cout<<-1<<endl;
-    }
 
     cerr<<"time: "<<chrono::duration_cast<chrono::microseconds>(chrono::system_clock::now()-start).count()*1e-6<<endl;
 }
