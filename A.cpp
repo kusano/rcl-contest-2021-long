@@ -289,8 +289,8 @@ int main()
 
                                 if (s2.F[tr][tc]>0)
                                 {
-                                    s2.money += s2.F[tr][tc];
-                                    s2.score += s2.F[tr][tc];
+                                    s2.money += s2.F[tr][tc]*mn;
+                                    s2.score += s2.F[tr][tc]*mn;
                                     s2.F[tr][tc] = 0;
                                 }
                                 for (int i=0; i<(int)SRC[t+1].size(); i++)
@@ -324,7 +324,7 @@ int main()
         if ((int)S[t+1].size()>BW)
             S[t+1].resize(BW);
 
-        cerr<<t+1<<" "<<S[t+1][0].score<<endl;
+        cerr<<t+1<<" "<<S[t+1][0].score<<" "<<S[t+1][0].money<<endl;
     }
 
     vector<Move> moves;
