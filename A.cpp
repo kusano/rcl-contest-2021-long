@@ -193,7 +193,7 @@ int main()
 
     init();
 
-    const int BW = 32;
+    const int BW = 48;
     vector<State> S[T];
 
     //  t=0
@@ -264,72 +264,81 @@ int main()
                             from.push_back(p);
                     }
             }
-            int f = from[xor64()%(int)from.size()];
+
             for (int t=0; t<N*N; t++)
             {
-                if (f==t || !s1.machine[t])
+                if (s1.machine[t])
+                    continue;
+
+                //  隣接マシン数
+                int nn = 0;
+                int n_machine = -1;
+                for (int n: Neighbor[t])
+                    if (s1.machine[n])
+                    {
+                        nn++;
+                        n_machine = n;
+                    }
+
+                //  隣接していなければ置かない
+                if (s1.machine_number>1 && nn==0)
+                    continue;
+
+                //  移動元の選択
+                int fn = (int)from.size();
+                int fr = xor64()%fn;
+                int f = -2;
+                //  隣接マシン数が2個以上、もしくは隣接したマシンではない
+                if (nn>=2 || from[fr]!=n_machine)
+                    f = from[fr];
+                else
+                    for (int ff: from)
+                        if (ff!=n_machine)
+                        {
+                            f = ff;
+                            break;
+                        }
+                if (f==-2)
+                    continue;
+
+                State s2 = s1;
+                s2.prev = &s1;
+                s2.move = Move(f, t);
+
+                if (f>=0)
                 {
-                    //  移動元以外のいずれかのマシンと隣接していれば置ける
-                    bool ok;
-                    if (s1.machine_number+(f<0 ? 1 : 0)==1)
-                        ok = true;
-                    else if (f==t)
-                        ok = true;
-                    else
-                    {
-                        ok = false;
-                        for (int tt: Neighbor[t])
-                            if (tt!=t &&
-                                tt!=f &&
-                                s1.machine[tt])
-                            {
-                                ok = true;
-                                break;
-                            }
-                    }
-
-                    if (ok)
-                    {
-                        State s2 = s1;
-                        s2.prev = &s1;
-                        s2.move = Move(f, t);
-
-                        if (f>=0)
-                        {
-                            s2.machine[f] = false;
-                            s2.hash ^= Hash[f];
-                        }
-                        s2.machine[t] = true;
-                        s2.hash ^= Hash[t];
-
-                        if (f<0)
-                        {
-                            s2.money -= MachinePrice[s2.machine_number];
-                            s2.machine_number++;
-                        }
-
-                        if (s2.field[t]>0)
-                        {
-                            s2.money += s2.field[t]*s2.machine_number;
-                            s2.field[t] = 0;
-                        }
-                        for (auto posv: SPosV[turn])
-                        {
-                            if (s2.machine[posv.pos])
-                                s2.money += posv.v*s2.machine_number;
-                            else
-                                s2.field[posv.pos] = posv.v;
-                        }
-                        for (int p: EPos[turn])
-                            s2.field[p] = 0;
-
-                        s2.score = calc_score(turn, s2);
-
-                        if (MS.count(s2.hash)==0 ||
-                            s2.score > MS[s2.hash].score)
-                            MS[s2.hash] = s2;
-                    }
+                    s2.machine[f] = false;
+                    s2.hash ^= Hash[f];
                 }
+                s2.machine[t] = true;
+                s2.hash ^= Hash[t];
+
+                if (f<0)
+                {
+                    s2.money -= MachinePrice[s2.machine_number];
+                    s2.machine_number++;
+                }
+
+                if (s2.field[t]>0)
+                {
+                    s2.money += s2.field[t]*s2.machine_number;
+                    s2.field[t] = 0;
+                }
+                for (auto posv: SPosV[turn])
+                {
+                    if (s2.machine[posv.pos])
+                        s2.money += posv.v*s2.machine_number;
+                    else
+                        s2.field[posv.pos] = posv.v;
+                }
+                for (int p: EPos[turn])
+                    s2.field[p] = 0;
+
+                s2.score = calc_score(turn, s2);
+
+                if (MS.count(s2.hash)==0 ||
+                    s2.score > MS[s2.hash].score)
+                    MS[s2.hash] = s2;
             }
         }
 
