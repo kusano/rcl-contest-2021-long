@@ -55,6 +55,7 @@ unsigned long long Hash[N*N];
 unsigned char Neighbor[N*N][4]; // Neighbor[i][x]==i は無効値
 int MachinePrice[N*N];          //  i番目のマシンを買うときの値段
 int MachineTotal[N*N+1];        //  i個のマシンを買うのに使った金額
+int MoneySum[T+N*N+1][N*N];     //  得られる金額の累積和
 
 vector<PosV> SPosV[T];
 vector<int> EPos[T];
@@ -118,8 +119,14 @@ long long calc_score(int turn, State &s)
         score = s.money;
     else
         score = s.money + MachineTotal[s.machine_number];
+    score <<= 8;
 
-    score = score<<16 | (long long)(s.hash&0xffff);
+    for (int i=0; i<N*N; i++)
+        if (s.machine[i])
+            score += MoneySum[turn+s.machine_number+2][i] - MoneySum[turn+2][i];
+    score <<= 8;
+
+    score += (long long)(s.hash&0xffff);
     return score;
 }
 
@@ -152,6 +159,17 @@ void init()
     MachineTotal[0] = 0;
     for (int i=1; i<=256; i++)
         MachineTotal[i] = MachineTotal[i-1]+MachinePrice[i-1];
+
+    for (int t=0; t<T; t++)
+    {
+        for (int i=0; i<N*N; i++)
+            MoneySum[t+1][i] = MoneySum[t][i];
+        for (PosV posv: SPosV[t])
+            MoneySum[t+1][posv.pos] += posv.v;
+    }
+    for (int t=T; t<T+N*N; t++)
+        for (int i=0; i<N*N; i++)
+            MoneySum[t+1][i] = MoneySum[t][i];
 }
 
 int main()
@@ -170,7 +188,7 @@ int main()
 
     init();
 
-    const int BW = 32;
+    const int BW = 16;
     vector<State> S[T];
 
     //  t=0
