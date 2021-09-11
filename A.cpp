@@ -208,28 +208,29 @@ int main()
                             State s2 = s1;
                             s2.prev = &s1;
                             s2.move = Move(f, t);
+                            int mn2 = mn;
 
                             if (f>=0)
                                 s2.machine[f] = false;
                             s2.machine[t] = true;
                             if (f<0)
                             {
-                                mn++;
-                                s2.money -= mn*mn*mn;
+                                mn2++;
+                                s2.money -= mn2*mn2*mn2;
                             }
 
                             if (s2.field[t]>0)
                             {
-                                s2.money += s2.field[t]*mn;
-                                s2.score += s2.field[t]*mn;
+                                s2.money += s2.field[t]*mn2;
+                                s2.score += s2.field[t]*mn2;
                                 s2.field[t] = 0;
                             }
                             for (auto posv: SPosV[turn])
                             {
                                 if (s2.machine[posv.pos])
                                 {
-                                    s2.money += posv.v*mn;
-                                    s2.score += posv.v*mn;
+                                    s2.money += posv.v*mn2;
+                                    s2.score += posv.v*mn2;
                                 }
                                 else
                                     s2.field[posv.pos] = posv.v;
