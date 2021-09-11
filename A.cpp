@@ -115,7 +115,7 @@ long long calc_hash(bool M[N*N])
     return h;
 }
 
-long long calc_score(int turn, State &s)
+long long calc_score(int turn, const State &s, const vector<int> &machine_pos)
 {
     long long score;
     //  最後は金を見る
@@ -125,9 +125,9 @@ long long calc_score(int turn, State &s)
         score = s.money + MachineTotal[s.machine_number];
     score <<= 8;
 
-    for (int i=0; i<N*N; i++)
-        if (s.machine[i])
-            score += MoneySum[turn+s.machine_number+2][i] - MoneySum[turn+2][i];
+    for (int p: machine_pos)
+        if (s.machine[p])
+            score += MoneySum[turn+s.machine_number+2][p] - MoneySum[turn+2][p];
     score <<= 8;
 
     score += (long long)(s.hash&0xff);
@@ -197,10 +197,17 @@ int main()
 
     init();
 
-    const int BW = 64;
+    const int BW = 96;
     vector<State> S[T];
 
-    //  t=0
+    //  マシンがあるかもしれない位置
+    //  calc_scoreに補助情報として渡す
+    vector<int> machine_pos;
+
+    //  t=0    
+    for (int i=0; i<N*N; i++)
+        machine_pos.push_back(i);
+
     for (int p=0; p<N*N; p++)
     {
         State s;
@@ -218,7 +225,7 @@ int main()
         for (int p: EPos[0])
             s.field[p] = 0;
         s.hash = calc_hash(s.machine);
-        s.score = calc_score(0, s);
+        s.score = calc_score(0, s, machine_pos);
 
         S[0].push_back(s);
     }
@@ -229,6 +236,7 @@ int main()
 
     vector<State *> Stemp;
     unordered_map<unsigned long long, State> MS;
+    vector<int> from;
 
     for (int turn=1; turn<T; turn++)
     {
@@ -236,7 +244,12 @@ int main()
 
         for (State &s1: S[turn-1])
         {
-            vector<int> from;
+            machine_pos.clear();
+            for (int p=0; p<N*N; p++)
+                if (s1.machine[p])
+                    machine_pos.push_back(p);
+
+            from.clear();
             //  最後はマシンを買わない
             //  それ以前は買えるときには必ず買う
             if (turn<T_THRES &&
@@ -244,29 +257,29 @@ int main()
                 from.push_back(-1);
             else
             {
-                for (int p=0; p<N*N; p++)
-                    if (s1.machine[p])
+                //  この時点では必ずマシンがあるので、s1.machine[p]のチェックは不要
+                for (int p: machine_pos)
+                {
+                    //  移動元は除いても連結にする
+                    bool ok;
+                    if (s1.machine_number==1)
+                        ok = true;
+                    else
                     {
-                        //  移動元は除いても連結にする
-                        bool ok;
-                        if (s1.machine_number==1)
-                            ok = true;
-                        else
-                        {
-                            s1.machine[p] = false;
-                            for (int t: Neighbor[p])
-                                if (t!=p &&
-                                    s1.machine[t])
-                                {
-                                    ok = calc_k(s1.machine, t)==s1.machine_number-1;
-                                    break;
-                                }
-                            s1.machine[p] = true;
-                        }
-
-                        if (ok)
-                            from.push_back(p);
+                        s1.machine[p] = false;
+                        for (int t: Neighbor[p])
+                            if (t!=p &&
+                                s1.machine[t])
+                            {
+                                ok = calc_k(s1.machine, t)==s1.machine_number-1;
+                                break;
+                            }
+                        s1.machine[p] = true;
                     }
+
+                    if (ok)
+                        from.push_back(p);
+                }
             }
 
             for (int t=0; t<N*N; t++)
@@ -316,6 +329,7 @@ int main()
                 }
                 s2.machine[t] = true;
                 s2.hash ^= Hash[t];
+                machine_pos.push_back(t);
 
                 if (f<0)
                 {
@@ -338,7 +352,9 @@ int main()
                 for (int p: EPos[turn])
                     s2.field[p] = 0;
 
-                s2.score = calc_score(turn, s2);
+                s2.score = calc_score(turn, s2, machine_pos);
+
+                machine_pos.pop_back();
 
                 if (MS.count(s2.hash)==0 ||
                     s2.score > MS[s2.hash].score)
