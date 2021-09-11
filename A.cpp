@@ -233,9 +233,12 @@ int main()
         for (State &s1: S[turn-1])
         {
             vector<int> from;
-            //  最後はマシンを買えるときに移動も可
-            if (turn>=T_THRES ||
-                MachinePrice[s1.machine_number]>s1.money)
+            //  最後はマシンを買わない
+            //  それ以前は買えるときには必ず買う
+            if (turn<T_THRES &&
+                MachinePrice[s1.machine_number]<=s1.money)
+                from.push_back(-1);
+            else
             {
                 for (int p=0; p<N*N; p++)
                     if (s1.machine[p])
@@ -268,8 +271,6 @@ int main()
                     swap(from[i], from[xor64()%(n-i)+i]);
                 from.resize(3);
             }
-            if (MachinePrice[s1.machine_number]<=s1.money)
-                from.push_back(-1);
 
             for (int f: from)
             {
