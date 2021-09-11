@@ -145,7 +145,7 @@ int main()
 
     init();
 
-    const int BW = 8;
+    const int BW = 16;
     vector<State> S[T];
 
     //  t=0
@@ -222,12 +222,12 @@ int main()
                     }
             }
 
-            if ((int)from.size()>8)
+            if ((int)from.size()>3)
             {
                 int n = (int)from.size();
-                for (int i=0; i<8; i++)
+                for (int i=0; i<3; i++)
                     swap(from[i], from[xor64()%(n-i)+i]);
-                from.resize(8);
+                from.resize(3);
             }
 
             for (int f: from)
