@@ -130,7 +130,7 @@ long long calc_score(int turn, State &s)
             score += MoneySum[turn+s.machine_number+2][i] - MoneySum[turn+2][i];
     score <<= 8;
 
-    score += (long long)(s.hash&0xffff);
+    score += (long long)(s.hash&0xff);
     return score;
 }
 
