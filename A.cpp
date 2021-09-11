@@ -167,7 +167,7 @@ int main()
 
     init();
 
-    const int BW = 16;
+    const int BW = 32;
     vector<State> S[T];
 
     //  t=0
