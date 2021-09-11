@@ -39,17 +39,21 @@ struct State
     Move move;
 };
 
+bool operator<(const State &s1, const State &s2)
+{
+    return s1.score>s2.score;
+}
+bool cmp_state(const State *s1, const State *s2)
+{
+    return *s1<*s2;
+}
+
 struct PosV
 {
     int pos;
     int v;
     PosV(int pos, int v): pos(pos), v(v) {}
 };
-
-bool operator<(const State &s1, const State &s2)
-{
-    return s1.score>s2.score;
-}
 
 unsigned long long Hash[N*N];
 unsigned char Neighbor[N*N][4]; // Neighbor[i][x]==i は無効値
@@ -193,7 +197,7 @@ int main()
 
     init();
 
-    const int BW = 48;
+    const int BW = 64;
     vector<State> S[T];
 
     //  t=0
@@ -223,7 +227,7 @@ int main()
     if ((int)S[0].size()>BW)
         S[0].resize(BW);
 
-    vector<State> Stemp;
+    vector<State *> Stemp;
     unordered_map<unsigned long long, State> MS;
 
     for (int turn=1; turn<T; turn++)
@@ -344,12 +348,12 @@ int main()
 
         Stemp.clear();
         for (auto &s: MS)
-            Stemp.push_back(s.second);
-        sort(Stemp.begin(), Stemp.end());
+            Stemp.push_back(&s.second);
+        sort(Stemp.begin(), Stemp.end(), cmp_state);
         if ((int)Stemp.size()>BW)
             Stemp.resize(BW);
-        for (State &s: Stemp)
-            S[turn].push_back(s);
+        for (State *s: Stemp)
+            S[turn].push_back(*s);
     }
 
     cerr<<"money: "<<S[T-1][0].money<<endl;
