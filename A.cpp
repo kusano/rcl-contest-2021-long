@@ -72,40 +72,6 @@ int xor64(void) {
     return int(x&0x7fffffff);
 }
 
-//  隣接している収穫機数を返す
-int calc_k_sub(bool machine[N*N], int p, vector<int> *hist);
-
-int calc_k(bool machine[N*N], int p)
-{
-    assert(machine[p]);
-
-    static vector<int> hist;
-    int n = calc_k_sub(machine, p, &hist);
-
-    while (!hist.empty())
-    {
-        machine[hist.back()] = true;
-        hist.pop_back();
-    }
-
-    return n;
-}
-
-int calc_k_sub(bool machine[N*N], int p, vector<int> *hist)
-{
-    assert(machine[p]);
-
-    machine[p] = false;
-    hist->push_back(p);
-
-    int n = 1;
-    for (int t: Neighbor[p])
-        if (t!=p &&
-            machine[t])
-            n += calc_k_sub(machine, t, hist);
-    return n;
-}
-
 long long calc_hash(bool M[N*N])
 {
     long long h = 0;
@@ -197,7 +163,7 @@ int main()
 
     init();
 
-    const int BW = 96;
+    const int BW = 128;
     vector<State> S[T];
 
     //  収穫機があるかもしれない位置
@@ -260,24 +226,18 @@ int main()
                 //  この時点では必ず収穫機があるので、s1.machine[p]のチェックは不要
                 for (int p: machine_pos)
                 {
-                    //  移動元は除いても連結にする
-                    bool ok;
-                    if (s1.machine_number==1)
-                        ok = true;
-                    else
-                    {
-                        s1.machine[p] = false;
-                        for (int t: Neighbor[p])
-                            if (t!=p &&
-                                s1.machine[t])
-                            {
-                                ok = calc_k(s1.machine, t)==s1.machine_number-1;
-                                break;
-                            }
-                        s1.machine[p] = true;
-                    }
+                    int nn = 0;
+                    int np[4];
+                    for (int t: Neighbor[p])
+                        if (t!=p &&
+                            s1.machine[t])
+                            np[nn++] = t;
 
-                    if (ok)
+                    //  隣接収穫機数が1個のもののみ移動可
+                    //  ただし、2個でも間に収穫機があれば可
+                    if (s1.machine_number==1 ||
+                        nn==1 ||
+                        nn==2 && np[0]+np[1]-p!=p && s1.machine[np[0]+np[1]-p])
                         from.push_back(p);
                 }
             }
@@ -289,28 +249,32 @@ int main()
 
                 //  隣接収穫機数
                 int nn = 0;
-                int n_machine = -1;
-                for (int n: Neighbor[t])
-                    if (s1.machine[n])
-                    {
-                        nn++;
-                        n_machine = n;
-                    }
+                int np[4] = {-1};
+                for (int tt: Neighbor[t])
+                    if (tt!=t &&
+                        s1.machine[tt])
+                        np[nn++] = tt;
 
-                //  隣接していなければ置かない
-                if (s1.machine_number>1 && nn==0)
-                    continue;
+                if (s1.machine_number>1)
+                {
+                    //  木の葉の位置のみに置く
+                    //  ただし、4個を正方形に並べるのは可
+                    if (nn!=1 && nn!=2)
+                        continue;
+                    if (nn==2 && !s1.machine[np[0]+np[1]-t])
+                        continue;
+                }
 
                 //  移動元の選択
                 int fn = (int)from.size();
                 int fr = xor64()%fn;
                 int f = -2;
                 //  隣接収穫機数が2個以上、もしくは隣接した収穫機ではない
-                if (nn>=2 || from[fr]!=n_machine)
+                if (nn>=2 || from[fr]!=np[0])
                     f = from[fr];
                 else
                     for (int ff: from)
-                        if (ff!=n_machine)
+                        if (ff!=np[0])
                         {
                             f = ff;
                             break;
