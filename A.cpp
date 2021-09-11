@@ -193,9 +193,32 @@ int main()
             //  最後はマシンを買えるときに移動も可
             if (turn>=T*9/10 ||
                 (mn+1)*(mn+1)*(mn+1)>s1.money)
+            {
                 for (int p=0; p<N*N; p++)
                     if (s1.machine[p])
-                        from.push_back(p);
+                    {
+                        //  移動元は除いても連結にする
+                        bool ok;
+                        if (mn==1)
+                            ok = true;
+                        else
+                        {
+                            s1.machine[p] = false;
+                            for (int t: Neighbor[p])
+                                if (t!=p &&
+                                    s1.machine[t])
+                                {
+                                    ok = calc_k(s1.machine, t)==mn-1;
+                                    break;
+                                }
+                            s1.machine[p] = true;
+                        }
+
+                        if (ok)
+                            from.push_back(p);
+                    }
+            }
+
             if ((int)from.size()>8)
             {
                 int n = (int)from.size();
@@ -210,13 +233,24 @@ int main()
                 {
                     if (f==t || !s1.machine[t])
                     {
-                        if (f>=0)
-                            s1.machine[f] = false;
-                        s1.machine[t] = true;
-                        bool ok = calc_k(s1.machine, t)==mn+(f<0 ? 1 : 0);
-                        s1.machine[t] = false;
-                        if (f>=0)
-                            s1.machine[f] = true;
+                        //  移動元以外のいずれかのマシンと隣接していれば置ける
+                        bool ok;
+                        if (mn+(f<0 ? 1 : 0)==1)
+                            ok = true;
+                        else if (f==t)
+                            ok = true;
+                        else
+                        {
+                            ok = false;
+                            for (int tt: Neighbor[t])
+                                if (tt!=t &&
+                                    tt!=f &&
+                                    s1.machine[tt])
+                                {
+                                    ok = true;
+                                    break;
+                                }
+                        }
 
                         if (ok)
                         {
