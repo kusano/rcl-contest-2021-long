@@ -109,10 +109,15 @@ long long calc_hash(bool M[N*N])
 
 long long calc_score(int turn, State &s)
 {
+    long long score;
+    //  最後は金を見る
     if (turn>=T*9/10)
-        return s.money;
+        score = s.money;
     else
-        return s.money + MachineTotal[s.machine_number];
+        score = s.money + MachineTotal[s.machine_number];
+
+    score = score<<16 | (long long)(s.hash&0xffff);
+    return score;
 }
 
 void init()
