@@ -31,6 +31,7 @@ struct State
     unsigned long long hash = 0;
     long long score = 0;
     long long money = 0;
+    int machine_number = 0;
     State *prev = nullptr;
     Move move;
 };
@@ -49,6 +50,8 @@ bool operator<(const State &s1, const State &s2)
 
 unsigned long long Hash[N*N];
 unsigned char Neighbor[N*N][4]; // Neighbor[i][x]==i は無効値
+int MachinePrice[N*N];          //  i番目のマシンを買うときの値段
+int MachineTotal[N*N+1];        //  i個のマシンを買うのに使った金額
 
 vector<PosV> SPosV[T];
 vector<int> EPos[T];
@@ -104,6 +107,14 @@ long long calc_hash(bool M[N*N])
     return h;
 }
 
+long long calc_score(int turn, State &s)
+{
+    if (turn>=T*9/10)
+        return s.money;
+    else
+        return s.money + MachineTotal[s.machine_number];
+}
+
 void init()
 {
     for (int p=0; p<N*N; p++)
@@ -127,6 +138,12 @@ void init()
                 Neighbor[p][d] = p;
         }
     }
+
+    for (int i=0; i<256; i++)
+        MachinePrice[i] = (i+1)*(i+1)*(i+1);
+    MachineTotal[0] = 0;
+    for (int i=1; i<=256; i++)
+        MachineTotal[i] = MachineTotal[i-1]+MachinePrice[i-1];
 }
 
 int main()
@@ -155,19 +172,18 @@ int main()
         s.score = 1;
         s.machine[p] = true;
         s.move = Move(-1, p);
+        s.machine_number = 1;
         for (auto posv: SPosV[0])
         {
             if (s.machine[posv.pos])
-            {
-                s.score += posv.v;
                 s.money += posv.v;
-            }
             else
                 s.field[posv.pos] = posv.v;
         }
         for (int p: EPos[0])
             s.field[p] = 0;
         s.hash = calc_hash(s.machine);
+        s.score = calc_score(0, s);
 
         S[0].push_back(s);
     }
@@ -185,22 +201,17 @@ int main()
 
         for (State &s1: S[turn-1])
         {
-            int mn = 0;
-            for (int p=0; p<N*N; p++)
-                if (s1.machine[p])
-                    mn++;
-
             vector<int> from;
             //  最後はマシンを買えるときに移動も可
             if (turn>=T*9/10 ||
-                (mn+1)*(mn+1)*(mn+1)>s1.money)
+                MachinePrice[s1.machine_number]>s1.money)
             {
                 for (int p=0; p<N*N; p++)
                     if (s1.machine[p])
                     {
                         //  移動元は除いても連結にする
                         bool ok;
-                        if (mn==1)
+                        if (s1.machine_number==1)
                             ok = true;
                         else
                         {
@@ -209,7 +220,7 @@ int main()
                                 if (t!=p &&
                                     s1.machine[t])
                                 {
-                                    ok = calc_k(s1.machine, t)==mn-1;
+                                    ok = calc_k(s1.machine, t)==s1.machine_number-1;
                                     break;
                                 }
                             s1.machine[p] = true;
@@ -226,7 +237,7 @@ int main()
                     swap(from[i], from[xor64()%(n-i)+i]);
                 from.resize(3);
             }
-            if ((mn+1)*(mn+1)*(mn+1)<=s1.money)
+            if (MachinePrice[s1.machine_number]<=s1.money)
                 from.push_back(-1);
 
             for (int f: from)
@@ -237,7 +248,7 @@ int main()
                     {
                         //  移動元以外のいずれかのマシンと隣接していれば置ける
                         bool ok;
-                        if (mn+(f<0 ? 1 : 0)==1)
+                        if (s1.machine_number+(f<0 ? 1 : 0)==1)
                             ok = true;
                         else if (f==t)
                             ok = true;
@@ -259,7 +270,6 @@ int main()
                             State s2 = s1;
                             s2.prev = &s1;
                             s2.move = Move(f, t);
-                            int mn2 = mn;
 
                             if (f>=0)
                             {
@@ -271,32 +281,26 @@ int main()
 
                             if (f<0)
                             {
-                                mn2++;
-                                s2.money -= mn2*mn2*mn2;
+                                s2.money -= MachinePrice[s2.machine_number];
+                                s2.machine_number++;
                             }
 
                             if (s2.field[t]>0)
                             {
-                                s2.money += s2.field[t]*mn2;
-                                s2.score += s2.field[t]*mn2;
+                                s2.money += s2.field[t]*s2.machine_number;
                                 s2.field[t] = 0;
                             }
                             for (auto posv: SPosV[turn])
                             {
                                 if (s2.machine[posv.pos])
-                                {
-                                    s2.money += posv.v*mn2;
-                                    s2.score += posv.v*mn2;
-                                }
+                                    s2.money += posv.v*s2.machine_number;
                                 else
                                     s2.field[posv.pos] = posv.v;
                             }
                             for (int p: EPos[turn])
                                 s2.field[p] = 0;
 
-                            //  最後は金額を見る
-                            if (turn>=T*9/10)
-                                s2.score = s2.money;
+                            s2.score = calc_score(turn, s2);
 
                             if (MS.count(s2.hash)==0 ||
                                 s2.score > MS[s2.hash].score)
