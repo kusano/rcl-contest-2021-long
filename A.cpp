@@ -47,7 +47,7 @@ bool operator<(const State &s1, const State &s2)
     return s1.score>s2.score;
 }
 
-unsigned long long Hash[N*N][3];
+unsigned long long Hash[N*N][2];
 unsigned char Neighbor[N*N][4]; // Neighbor[i][x]==i は無効値
 
 vector<PosV> SPosV[T];
@@ -95,18 +95,18 @@ int calc_k_sub(bool machine[N*N], int p, vector<int> *hist)
     return n;
 }
 
-long long calc_hash(short F[N*N], bool M[N*N])
+long long calc_hash(bool M[N*N])
 {
     long long h = 0;
     for (int p=0; p<N*N; p++)
-        h ^= Hash[p][(F[p]>0?2:0)+(M[p]?1:0)];
+        h ^= Hash[p][M[p]?1:0];
     return h;
 }
 
 void init()
 {
     for (int p=0; p<N*N; p++)
-        for (int i=0; i<3; i++)
+        for (int i=0; i<2; i++)
             Hash[p][i] = (unsigned long long)xor64()<<32 | xor64();
 
     int dr[] = {1, -1, 0, 0};
@@ -167,7 +167,7 @@ int main()
         }
         for (int p: EPos[0])
             s.field[p] = 0;
-        s.hash = calc_hash(s.field, s.machine);
+        s.hash = calc_hash(s.machine);
 
         S[0].push_back(s);
     }
@@ -293,7 +293,7 @@ int main()
                             if (turn>=T*9/10)
                                 s2.score = s2.money;
 
-                            s2.hash = calc_hash(s2.field, s2.machine);
+                            s2.hash = calc_hash(s2.machine);
 
                             if (MS.count(s2.hash)==0 ||
                                 s2.score > MS[s2.hash].score)
