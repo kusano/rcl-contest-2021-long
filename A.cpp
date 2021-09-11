@@ -48,6 +48,7 @@ bool operator<(const State &s1, const State &s2)
 }
 
 unsigned long long Hash[N*N][3];
+unsigned char Neighbor[N*N][4]; // Neighbor[i][x]==i は無効値
 
 vector<PosV> SPosV[T];
 vector<int> EPos[T];
@@ -86,18 +87,11 @@ int calc_k_sub(bool machine[N*N], int p, vector<int> *hist)
     machine[p] = false;
     hist->push_back(p);
 
-    static int dr[] = {-1, 1, 0, 0};
-    static int dc[] = {0, 0, -1, 1};
     int n = 1;
-    for (int d=0; d<4; d++)
-    {
-        int tr = (p>>4) + dr[d];
-        int tc = (p&15) + dc[d];
-        if (0<=tr && tr<N &&
-            0<=tc && tc<N &&
-            machine[tr*N+tc])
-            n += calc_k_sub(machine, tr*N+tc, hist);
-    }
+    for (int t: Neighbor[p])
+        if (t!=p &&
+            machine[t])
+            n += calc_k_sub(machine, t, hist);
     return n;
 }
 
@@ -107,6 +101,32 @@ long long calc_hash(short F[N*N], bool M[N*N])
     for (int p=0; p<N*N; p++)
         h ^= Hash[p][(F[p]>0?2:0)+(M[p]?1:0)];
     return h;
+}
+
+void init()
+{
+    for (int p=0; p<N*N; p++)
+        for (int i=0; i<3; i++)
+            Hash[p][i] = (unsigned long long)xor64()<<32 | xor64();
+
+    int dr[] = {1, -1, 0, 0};
+    int dc[] = {0, 0, 1, -1};
+
+    for (int p=0; p<N*N; p++)
+    {
+        int r = p/N;
+        int c = p%N;
+        for (int d=0; d<4; d++)
+        {
+            int tr = r+dr[d];
+            int tc = c+dc[d];
+            if (0<=tr && tr<N &&
+                0<=tc && tc<N)
+                Neighbor[p][d] = (unsigned char)(tr*N+tc);
+            else
+                Neighbor[p][d] = p;
+        }
+    }
 }
 
 int main()
@@ -123,9 +143,7 @@ int main()
 
     chrono::system_clock::time_point start = chrono::system_clock::now();
 
-    for (int p=0; p<N*N; p++)
-        for (int i=0; i<3; i++)
-            Hash[p][i] = (unsigned long long)xor64()<<32 | xor64();
+    init();
 
     const int BW = 8;
     vector<State> S[T];
@@ -158,9 +176,6 @@ int main()
     if ((int)S[0].size()>BW)
         S[0].resize(BW);
 
-    int dr[] = {1, -1, 0, 0};
-    int dc[] = {0, 0, 1, -1};
-
     for (int turn=1; turn<T; turn++)
     {
         map<unsigned long long, State> MS;
@@ -175,7 +190,7 @@ int main()
             vector<int> from;
             if ((mn+1)*(mn+1)*(mn+1)<=s1.money)
                 from.push_back(-1);
-            //  最後はマシンを変えるときに移動も可
+            //  最後はマシンを買えるときに移動も可
             if (turn>=T*9/10 ||
                 (mn+1)*(mn+1)*(mn+1)>s1.money)
                 for (int p=0; p<N*N; p++)
