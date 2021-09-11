@@ -191,8 +191,6 @@ int main()
                     mn++;
 
             vector<int> from;
-            if ((mn+1)*(mn+1)*(mn+1)<=s1.money)
-                from.push_back(-1);
             //  最後はマシンを買えるときに移動も可
             if (turn>=T*9/10 ||
                 (mn+1)*(mn+1)*(mn+1)>s1.money)
@@ -221,7 +219,6 @@ int main()
                             from.push_back(p);
                     }
             }
-
             if ((int)from.size()>3)
             {
                 int n = (int)from.size();
@@ -229,6 +226,8 @@ int main()
                     swap(from[i], from[xor64()%(n-i)+i]);
                 from.resize(3);
             }
+            if ((mn+1)*(mn+1)*(mn+1)<=s1.money)
+                from.push_back(-1);
 
             for (int f: from)
             {
