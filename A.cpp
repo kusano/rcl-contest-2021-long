@@ -8,7 +8,7 @@
 #include <queue>
 #include <cstring>
 #include <algorithm>
-#include <map>
+#include <unordered_map>
 using namespace std;
 
 const int N = 16;
@@ -177,10 +177,11 @@ int main()
         S[0].resize(BW);
 
     vector<State> Stemp;
+    unordered_map<unsigned long long, State> MS;
 
     for (int turn=1; turn<T; turn++)
     {
-        map<unsigned long long, State> MS;
+        MS.clear();
 
         for (State &s1: S[turn-1])
         {
