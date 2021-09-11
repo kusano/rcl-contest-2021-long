@@ -15,6 +15,9 @@ const int N = 16;
 const int M = 5000;
 const int T = 1000;
 
+//  これ以降は、マシンを買わないのに買わないのも可
+const int T_THRES = 850;
+
 struct Move
 {
     //  購入はfrom=-1
@@ -111,7 +114,7 @@ long long calc_score(int turn, State &s)
 {
     long long score;
     //  最後は金を見る
-    if (turn>=T*9/10)
+    if (turn>=T_THRES)
         score = s.money;
     else
         score = s.money + MachineTotal[s.machine_number];
@@ -208,7 +211,7 @@ int main()
         {
             vector<int> from;
             //  最後はマシンを買えるときに移動も可
-            if (turn>=T*9/10 ||
+            if (turn>=T_THRES ||
                 MachinePrice[s1.machine_number]>s1.money)
             {
                 for (int p=0; p<N*N; p++)
