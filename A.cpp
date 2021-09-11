@@ -176,6 +176,8 @@ int main()
     if ((int)S[0].size()>BW)
         S[0].resize(BW);
 
+    vector<State> Stemp;
+
     for (int turn=1; turn<T; turn++)
     {
         map<unsigned long long, State> MS;
@@ -302,11 +304,14 @@ int main()
             }
         }
 
+        Stemp.clear();
         for (auto &s: MS)
-            S[turn].push_back(s.second);
-        sort(S[turn].begin(), S[turn].end());
-        if ((int)S[turn].size()>BW)
-            S[turn].resize(BW);
+            Stemp.push_back(s.second);
+        sort(Stemp.begin(), Stemp.end());
+        if ((int)Stemp.size()>BW)
+            Stemp.resize(BW);
+        for (State &s: Stemp)
+            S[turn].push_back(s);
     }
 
     cerr<<"money: "<<S[T-1][0].money<<endl;
