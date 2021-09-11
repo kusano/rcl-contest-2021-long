@@ -1,4 +1,4 @@
-//  g++ -O2 -o A A.cpp && for i in $(seq 0 9); do echo ${i}; ./A < tester/input_${i}.txt > tester/output_${i}.txt; done
+//  g++ -O2 -o A A.cpp && python3 test.py
 
 #include <iostream>
 #include <vector>
