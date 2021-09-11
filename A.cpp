@@ -165,7 +165,12 @@ void init()
         for (int i=0; i<N*N; i++)
             MoneySum[t+1][i] = MoneySum[t][i];
         for (PosV posv: SPosV[t])
-            MoneySum[t+1][posv.pos] += posv.v;
+        {
+            MoneySum[t+1][posv.pos] += posv.v*16;
+            for (int t: Neighbor[posv.pos])
+                if (t!=posv.pos)
+                    MoneySum[t+1][t] += posv.v;
+        }
     }
     for (int t=T; t<T+N*N; t++)
         for (int i=0; i<N*N; i++)
