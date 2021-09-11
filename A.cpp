@@ -47,7 +47,7 @@ bool operator<(const State &s1, const State &s2)
     return s1.score>s2.score;
 }
 
-unsigned long long Hash[N*N][2];
+unsigned long long Hash[N*N];
 unsigned char Neighbor[N*N][4]; // Neighbor[i][x]==i は無効値
 
 vector<PosV> SPosV[T];
@@ -99,15 +99,15 @@ long long calc_hash(bool M[N*N])
 {
     long long h = 0;
     for (int p=0; p<N*N; p++)
-        h ^= Hash[p][M[p]?1:0];
+        if (M[p])
+            h ^= Hash[p];
     return h;
 }
 
 void init()
 {
     for (int p=0; p<N*N; p++)
-        for (int i=0; i<2; i++)
-            Hash[p][i] = (unsigned long long)xor64()<<32 | xor64();
+        Hash[p] = (unsigned long long)xor64()<<32 | xor64();
 
     int dr[] = {1, -1, 0, 0};
     int dc[] = {0, 0, 1, -1};
@@ -263,8 +263,13 @@ int main()
                             int mn2 = mn;
 
                             if (f>=0)
+                            {
                                 s2.machine[f] = false;
+                                s2.hash ^= Hash[f];
+                            }
                             s2.machine[t] = true;
+                            s2.hash ^= Hash[t];
+
                             if (f<0)
                             {
                                 mn2++;
@@ -293,8 +298,6 @@ int main()
                             //  最後は金額を見る
                             if (turn>=T*9/10)
                                 s2.score = s2.money;
-
-                            s2.hash = calc_hash(s2.machine);
 
                             if (MS.count(s2.hash)==0 ||
                                 s2.score > MS[s2.hash].score)
