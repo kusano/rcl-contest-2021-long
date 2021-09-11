@@ -15,7 +15,7 @@ const int N = 16;
 const int M = 5000;
 const int T = 1000;
 
-//  これ以降は、マシンを買わないのに買わないのも可
+//  これ以降は、収穫機を買わない
 const int T_THRES = 850;
 
 struct Move
@@ -57,8 +57,8 @@ struct PosV
 
 unsigned long long Hash[N*N];
 unsigned char Neighbor[N*N][4]; // Neighbor[i][x]==i は無効値
-int MachinePrice[N*N];          //  i番目のマシンを買うときの値段
-int MachineTotal[N*N+1];        //  i個のマシンを買うのに使った金額
+int MachinePrice[N*N];          //  i番目の収穫機を買うときの値段
+int MachineTotal[N*N+1];        //  i個の収穫機を買うのに使った金額
 int MoneySum[T+N*N+1][N*N];     //  得られる金額の累積和
 
 vector<PosV> SPosV[T];
@@ -72,7 +72,7 @@ int xor64(void) {
     return int(x&0x7fffffff);
 }
 
-//  隣接しているマシン数を返す
+//  隣接している収穫機数を返す
 int calc_k_sub(bool machine[N*N], int p, vector<int> *hist);
 
 int calc_k(bool machine[N*N], int p)
@@ -158,10 +158,10 @@ void init()
         }
     }
 
-    for (int i=0; i<256; i++)
+    for (int i=0; i<N*N; i++)
         MachinePrice[i] = (i+1)*(i+1)*(i+1);
     MachineTotal[0] = 0;
-    for (int i=1; i<=256; i++)
+    for (int i=1; i<=N*N; i++)
         MachineTotal[i] = MachineTotal[i-1]+MachinePrice[i-1];
 
     for (int t=0; t<T; t++)
@@ -200,7 +200,7 @@ int main()
     const int BW = 96;
     vector<State> S[T];
 
-    //  マシンがあるかもしれない位置
+    //  収穫機があるかもしれない位置
     //  calc_scoreに補助情報として渡す
     vector<int> machine_pos;
 
@@ -250,14 +250,14 @@ int main()
                     machine_pos.push_back(p);
 
             from.clear();
-            //  最後はマシンを買わない
+            //  最後は収穫機を買わない
             //  それ以前は買えるときには必ず買う
             if (turn<T_THRES &&
                 MachinePrice[s1.machine_number]<=s1.money)
                 from.push_back(-1);
             else
             {
-                //  この時点では必ずマシンがあるので、s1.machine[p]のチェックは不要
+                //  この時点では必ず収穫機があるので、s1.machine[p]のチェックは不要
                 for (int p: machine_pos)
                 {
                     //  移動元は除いても連結にする
@@ -287,7 +287,7 @@ int main()
                 if (s1.machine[t])
                     continue;
 
-                //  隣接マシン数
+                //  隣接収穫機数
                 int nn = 0;
                 int n_machine = -1;
                 for (int n: Neighbor[t])
@@ -305,7 +305,7 @@ int main()
                 int fn = (int)from.size();
                 int fr = xor64()%fn;
                 int f = -2;
-                //  隣接マシン数が2個以上、もしくは隣接したマシンではない
+                //  隣接収穫機数が2個以上、もしくは隣接した収穫機ではない
                 if (nn>=2 || from[fr]!=n_machine)
                     f = from[fr];
                 else
