@@ -8,6 +8,7 @@
 #include <queue>
 #include <cstring>
 #include <algorithm>
+#include <set>
 using namespace std;
 
 const int N = 16;
@@ -162,7 +163,7 @@ int main()
 
     init();
 
-    const int BW = 192;
+    const int BW = 256;
     vector<State> S[T];
 
     //  収穫機があるかもしれない位置
@@ -201,11 +202,13 @@ int main()
 
     vector<State> Snew;
     vector<State *> Stemp;
+    multiset<long long> score;
     vector<int> from;
 
     for (int turn=1; turn<T; turn++)
     {
         Snew.clear();
+        score.clear();
 
         for (State &s1: S[turn-1])
         {
@@ -319,14 +322,21 @@ int main()
 
                 machine_pos.pop_back();
 
-                Snew.push_back(s2);
+                if (score.size()<BW ||
+                    s2.score>*score.begin())
+                {
+                    Snew.push_back(s2);
+                    score.insert(s2.score);
+                    if (score.size()>BW)
+                        score.erase(score.begin());
+                }
             }
         }
 
         Stemp.clear();
-        for (auto &s: Snew)
+        for (State &s: Snew)
             Stemp.push_back(&s);
-        sort(Stemp.begin(), Stemp.end(), cmp_state);
+        partial_sort(Stemp.begin(), Stemp.end(), Stemp.begin()+min(BW, (int)Stemp.size()), cmp_state);
         if ((int)Stemp.size()>BW)
             Stemp.resize(BW);
         for (State *s: Stemp)
