@@ -336,7 +336,7 @@ int main()
         Stemp.clear();
         for (State &s: Snew)
             Stemp.push_back(&s);
-        partial_sort(Stemp.begin(), Stemp.end(), Stemp.begin()+min(BW, (int)Stemp.size()), cmp_state);
+        sort(Stemp.begin(), Stemp.end(), cmp_state);
         if ((int)Stemp.size()>BW)
             Stemp.resize(BW);
         for (State *s: Stemp)
