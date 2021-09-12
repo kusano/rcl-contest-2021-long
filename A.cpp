@@ -163,7 +163,7 @@ int main()
 
     init();
 
-    const int BW = 300;
+    const int BW = 333;
     vector<State> S[T];
 
     //  収穫機があるかもしれない位置
