@@ -8,7 +8,6 @@
 #include <queue>
 #include <cstring>
 #include <algorithm>
-#include <unordered_map>
 using namespace std;
 
 const int N = 16;
@@ -163,7 +162,7 @@ int main()
 
     init();
 
-    const int BW = 128;
+    const int BW = 192;
     vector<State> S[T];
 
     //  収穫機があるかもしれない位置
@@ -200,13 +199,13 @@ int main()
     if ((int)S[0].size()>BW)
         S[0].resize(BW);
 
+    vector<State> Snew;
     vector<State *> Stemp;
-    unordered_map<unsigned long long, State> MS;
     vector<int> from;
 
     for (int turn=1; turn<T; turn++)
     {
-        MS.clear();
+        Snew.clear();
 
         for (State &s1: S[turn-1])
         {
@@ -320,15 +319,13 @@ int main()
 
                 machine_pos.pop_back();
 
-                if (MS.count(s2.hash)==0 ||
-                    s2.score > MS[s2.hash].score)
-                    MS[s2.hash] = s2;
+                Snew.push_back(s2);
             }
         }
 
         Stemp.clear();
-        for (auto &s: MS)
-            Stemp.push_back(&s.second);
+        for (auto &s: Snew)
+            Stemp.push_back(&s);
         sort(Stemp.begin(), Stemp.end(), cmp_state);
         if ((int)Stemp.size()>BW)
             Stemp.resize(BW);
