@@ -16,7 +16,7 @@ const int M = 5000;
 const int T = 1000;
 
 //  これ以降は、収穫機を買わない
-const int T_THRES = 850;
+const int T_THRES = 840;
 
 struct Move
 {
